@@ -9,8 +9,10 @@ executableName="${packageName}"
 RELEASE_FOLDER="releases/$VERSION/${PLATFORM}_${ARCH}"
 mkdir -p ${RELEASE_FOLDER}
 
+dart pub get
 dart compile exe ${packageName}.dart
 cd mobinsa_web
+flutter pub get
 flutter build web
 cd ..
 
