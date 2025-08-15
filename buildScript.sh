@@ -37,11 +37,12 @@ cd ../../
 mv mobinsa_web/build/web $RELEASE_FOLDER/ 
 
 #Packing everything in an zip.
-mkdir -p ${RELEASE_FOLDER}/unzipped
 
-zip -r ${RELEASE_FOLDER}/mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip ${RELEASE_FOLDER}
+cd ${RELEASE_FOLDER}
+zip -r mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip .
 
 # Cleaning up
-mv -f ${RELEASE_FOLDER}/web ${RELEASE_FOLDER}/unzipped/
-mv -f ${RELEASE_FOLDER}/${executableName} ${RELEASE_FOLDER}/unzipped/
-mv -f ${RELEASE_FOLDER}/${libkeychainname} ${RELEASE_FOLDER}/unzipped/
+mkdir -p unzipped
+mv -f web unzipped/
+mv -f ${executableName} unzipped/
+mv -f ${libkeychainname} unzipped/

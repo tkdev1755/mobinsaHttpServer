@@ -410,7 +410,6 @@ void broadcastMessageToWS(String data){
   }
 }
 void main() async{
-  const DEBUG = true;
   socket = await Socket.connect(masterProgamIP, PORT);
   print("Connected to mob'INSA software");
   socket.write("$httpInitHeader;$httpServerIdentity;$httpInitRawData");
