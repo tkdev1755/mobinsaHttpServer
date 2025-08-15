@@ -44,7 +44,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-linux-x86
-          path: releases/${{ steps.get_version.outputs.version }}/linux_x86/mobinsaHTTPServer_v${{steps.get_version.outputs.version}}_x86.zip
+          path: releases/${{ steps.get_version.outputs.version }}/linux_x86/*.zip
 
   release:
     needs: build
