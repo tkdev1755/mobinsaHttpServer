@@ -31,10 +31,10 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Make script executable
-        run: chmod +x ./build.sh
+        run: chmod +x ./buildScript.sh
 
       - name: Run build script
-        run: ./build.sh "${{ steps.get_version.outputs.version }}" "linux" "x86"
+        run: ./buildScript.sh "${{ steps.get_version.outputs.version }}" "linux" "x86"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
