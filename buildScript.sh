@@ -21,15 +21,15 @@ if [ "$PLATFORM" = "macos" ]; then
 	cd KeychainAPI/macos
 fi
 if [ "$PLATFORM" = "windows" ]; then
-	$packageName="${packageName}.exe"
+	packageName="${packageName}.exe"
 	mv ${packageName}.exe ${RELEASE_FOLDER}/
 	cd KeychainAPI/windows
-	$libkeychainname="libkeychain.dll"
+	libkeychainname="libkeychain.dll"
 fi
 if [ "$PLATFORM" = "linux" ]; then
 	mv ${packageName}.exe ${RELEASE_FOLDER}/${executableName}
 	cd KeychainAPI/linux
-	$libkeychainname="libkeychain.so"
+	libkeychainname="libkeychain.so"
 fi
 make
 
