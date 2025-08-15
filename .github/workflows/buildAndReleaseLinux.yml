@@ -46,6 +46,8 @@ jobs:
         with:
           name: release-linux-x86
           path: releases/${{ steps.get_version.outputs.version }}/linux_x86/*.zip
+          if-no-file-found:
+            error:"Failed to retrieve the file"
 
   release:
     needs: build
