@@ -20,8 +20,8 @@ jobs:
       - name: Install Flutter & Dart
         uses: subosito/flutter-action@v2
         with:
-          flutter-version-file: mobinsa_web/pubspec.yaml
           channel: 'stable'
+          flutter-version-file: 'mobinsa_web/pubspec.yaml'
       
       - name: Install dependencies (libsecret)
         run: |
