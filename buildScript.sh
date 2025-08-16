@@ -23,7 +23,7 @@ if [ "$PLATFORM" = "macos" ]; then
 fi
 if [ "$PLATFORM" = "windows" ]; then
 	executableName="${winExecName}"
-	mv winExecName ${RELEASE_FOLDER}/
+	mv $winExecName ${RELEASE_FOLDER}/
 	cd KeychainAPI/windows
 	libkeychainname="libkeychain.dll"
 fi
