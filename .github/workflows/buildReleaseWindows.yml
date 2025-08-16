@@ -44,7 +44,8 @@ jobs:
 
       - name: Run build script
         run: bash -c "./buildScript.sh '${{ steps.get_version.outputs.version }}' 'windows' 'x86'"
-
+      - name : Check for release zip presence
+        run : bash -c "ls"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
