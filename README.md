@@ -1,4 +1,4 @@
-# # MobINSA HTTP Server
+# MobINSA HTTP Server
 
 # Quel est le but de ce programme ?
 
