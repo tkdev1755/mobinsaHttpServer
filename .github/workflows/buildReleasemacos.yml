@@ -24,10 +24,7 @@ jobs:
           channel: 'stable'
           flutter-version-file: 'pubspec.yaml'
       
-      - name: Install dependencies (libsecret)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsecret-1-dev libsecret-tools gcc make
+
       - name: Extract version from pubspec.yaml
         id: get_version
         shell: bash
