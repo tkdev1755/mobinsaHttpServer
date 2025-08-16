@@ -42,8 +42,10 @@ mv mobinsa_web/build/web $RELEASE_FOLDER/
 #Packing everything in an zip.
 
 cd ${RELEASE_FOLDER}
+
 if [[ "$PLATFORM" = "windows" ]]; then
 	git archive --format=zip -o "mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip" --remote="." HEAD
+	echo "Zipped the archive correctly"
 else	
 	zip -r mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip .
 fi
