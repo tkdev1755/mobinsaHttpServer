@@ -5,6 +5,7 @@ PLATFORM=$2
 ARCH=$3
 libkeychainname="libkeychain.dylib"
 packageName="mobinsaHttpServer"
+winExecName="mobinsahttpserver.exe"
 executableName="${packageName}"
 RELEASE_FOLDER="releases/$VERSION/${PLATFORM}_${ARCH}"
 mkdir -p ${RELEASE_FOLDER}
@@ -21,8 +22,8 @@ if [ "$PLATFORM" = "macos" ]; then
 	cd KeychainAPI/macos
 fi
 if [ "$PLATFORM" = "windows" ]; then
-	packageName="${packageName}.exe"
-	mv ${packageName}.exe ${RELEASE_FOLDER}/
+	executableName="${winExecName}"
+	mv winExecName ${RELEASE_FOLDER}/
 	cd KeychainAPI/windows
 	libkeychainname="libkeychain.dll"
 fi
@@ -41,8 +42,11 @@ mv mobinsa_web/build/web $RELEASE_FOLDER/
 #Packing everything in an zip.
 
 cd ${RELEASE_FOLDER}
-zip -r mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip .
-
+if [[ "$PLATFORM" = "windows" ]]; then
+	git archive --format=zip -o "mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip" --remote="." HEAD
+else	
+	zip -r mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip .
+fi
 # Cleaning up
 mkdir -p unzipped
 mv -f web unzipped/
