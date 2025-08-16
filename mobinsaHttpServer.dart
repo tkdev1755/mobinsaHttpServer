@@ -549,6 +549,7 @@ Future<InternetAddress> getNetworkInterfaceIp() async{
 }
 /// Main function which is the entrypoint of the program
 void main() async{
+
   // Trying to establish a connection with the Master program
   socket = await Socket.connect(masterProgamIP, masterProgramPORT);
   print("Connected to mob'INSA software");
