@@ -44,7 +44,7 @@ mv mobinsa_web/build/web $RELEASE_FOLDER/
 cd ${RELEASE_FOLDER}
 
 if [[ "$PLATFORM" = "windows" ]]; then
-	git archive --format=zip -o "mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip" --remote="." HEAD
+	git archive --format=zip -o "mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip" --remote="${RELEASE_FOLDER}/" HEAD
 	echo "Zipped the archive correctly"
 	ls
 else	
