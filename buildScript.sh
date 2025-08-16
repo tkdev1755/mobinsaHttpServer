@@ -46,6 +46,7 @@ cd ${RELEASE_FOLDER}
 if [[ "$PLATFORM" = "windows" ]]; then
 	git archive --format=zip -o "mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip" --remote="." HEAD
 	echo "Zipped the archive correctly"
+	ls
 else	
 	zip -r mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip .
 fi
