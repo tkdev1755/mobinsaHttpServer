@@ -1,52 +1,89 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
-import 'dart:vmservice_io';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart' hide ECPrivateKey, ECPublicKey, RSAPrivateKey;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_static/shelf_static.dart';
-import 'package:shelf_router/shelf_router.dart';
-import 'package:shelf_web_socket/shelf_web_socket.dart';
 import 'package:uuid/uuid.dart';
-import 'package:basic_utils/basic_utils.dart';
 import 'KeychainAPI/keyring.dart';
 import 'certificateGenerator.dart';
 
+/// Keyring to store secrets in a secure manner
 final Keyring keyring = Keyring();
+/// Name of the app in the keychain of the OS
 const String httpServiceName = "mobinsaHTTPServer";
+/// Username used in the keychain of the OS
 const String httpUsername = "mobInsaJwtKey";
+/// IP used to communicate with the Master Program (e.g mobinsa.exe, mobinsa.app or mobinsa)
 final masterProgamIP = InternetAddress.loopbackIPv4;
-final PORT = 7070;
+/// Port used to communicate with the Master Program (e.g mobinsa.exe, mobinsa.app or mobinsa)
+final masterProgramPORT = 7070;
+/// IP used to Serve the MobINSA web app
 final httpIP = InternetAddress.anyIPv4;
+/// Port used to Serve the MobINSA web app
 final httpPORT = 8080;
+
+/// Messages between the Master Program and Web Clients follow this structure
+/// ACTION;SENDER;DATA
+/// Where ACTION is one of the headers that are defined below, and sender is the xIdentity
+/// And DATA depends on what action was specified before
+
 /// OWN HTTP SERVER HEADERS
+
 // Headers that are used to communicate with the Master Program
+
+/// Name of the server that is used in the communications with the master program (MP)
+/// Used in the SENDER field of any messgae going to the Master program (MP)
 const httpServerIdentity = "mHTTPServerV1.0.0";
+
+/// Header used to indicate that the HTTP server has been correctly started up
 const httpInitHeader = "httpInit";
-const httpInitRawData = "MobINSAHTTPServer - v1.0.0";
+/// Data that is sent with the httpInitHeader
+String httpInitRawData = '{"name" :"MobINSAHTTPServer - v1.0.0", "ipaddr" : "${httpIP.address}", "hostaddr" : "${httpIP
+    .host}"}';
+/// Header used to indicate that the session Data (session password and other info) was well received
 const String sessionDataReceivedHeader = "fSessionData";
+/// Header used to notify the MP of a new user which was successfully connected
 const String newUserHeader = "newUser";
+/// Header used to ask the MP for jury data when a user logged back in
 const String loginDataHeader = "loginGetData";
+/// Header used to notify the MP that the initial data (jury data) was well received
 const String initDataSentHeader = "fInitData";
+/// Header used to notify the MP that the vote start notification was broadcasted to all connected clients
 const String voteOkHeader = "voteOk";
+/// Header used to notify the MP that the vote end notification was broadcasted to all connected clients
 const String voteEndHeader = "voteEndOk";
-// Headers that are used for communicating with WS
-const String connectedInHeader = "connOk";
-const String connectErrorHeader = "connError";
-const String loginErrorHeader = "logInError";
-const String loginOkHeader = "loginOk";
-const String initDataHeader = "initDataSend";
-const String wsLoginDataHeader = "loginDataSend";
-const String wsLoginVoteHeader = "loginVoteData";
-const String startVoteHeader = "startVote";
-const String stopVoteHeader = "stopVote";
+/// Header used to notify the MP that there was a vote update from one of the connected client (voted for one choice, canceled current vote)
 const String voteUpdateHeader = "voteUpdate";
+
+// Headers that are used for communicating with WS
+/// Header used to notify the client that the authentification was successful
+const String connectedInHeader = "connOk";
+/// Header used to notify the client that the authentification wasn't successful
+const String connectErrorHeader = "connError";
+/// Header used to notify the client that the login wasn't successful
+const String loginErrorHeader = "logInError";
+/// Header used to notify the client that he is logged in
+const String loginOkHeader = "loginOk";
+/// Header used to send the initial data (jury data) to the clients
+const String initDataHeader = "initDataSend";
+
+/// Header used to send the  jury data to a client which logged back in
+const String wsLoginDataHeader = "loginDataSend";
+/// Header used to send the  vote data to a client which logged back in, if there is a vote currently going on
+const String wsLoginVoteHeader = "loginVoteData";
+/// Header used to notify the clients that a vote started
+const String startVoteHeader = "startVote";
+/// Header used to notify the clients that the ongoing vote was stopped
+const String stopVoteHeader = "stopVote";
+/// Header used to send the updates from the MP to the connected clients (choice acceptance, choice refusal, canceled action etc...)
 const String sessionUpdateHeader = "sessionUpdate";
 /// END OF HTTP SERVER HEADERS
 
 ///  MASTER PROGRAM HEADERS
 ///  mp stands for Master Program
+///  The Description for these headers can be found in the MobINSA repo, at /github.com/tkdev1755/mobinsa/blob/mobinsa_collaborative/lib/model/networkManager.dart
 const mpSessionDataHeader = "sessionDataExchange";
 const mpInitDataHeader = "initData";
 const mpStartVoteHeader = "startVote";
@@ -56,6 +93,8 @@ const mpSessionUpdate = "sessionUpdate";
 /// END OF MASTER PROGRAM HEADERS
 
 /// WS SPECIFIC HEADERS
+///
+/// The Description for these headers can be found in this repo in the following file mobinsa_web/lib/model/networkManager.dart
 const webClientNewUserHeader = "newUser";
 const webClientLogIn = "logIn";
 const webClientVoteUpdate = "voteUpdate";
@@ -63,20 +102,42 @@ const webClientIdentity = "MobINSAWEBClient";
 final wsHeaders = [webClientNewUserHeader,webClientLogIn];
 /// END OF WS SPECIFIC HEADERS
 
+/// Map which contains all the successfully connected clients (Websockets for which the authenticate() function returned true
+///
+/// Has a Websocket as a key and Map as value (containing the jwt token and other useful info about the client)
 final Map<WebSocket, Map<String,dynamic>> clients = {};
+/// List containing clients which logged back in and are waiting for session data
 List<WebSocket> waitingClientsForData = [];
+
+/// Socket used to communicate with the master program
 late Socket socket;
+
+/// Describe whether the jury has been started by the user of the MP or not
 bool startedJury = false;
+
+/// Stores the current vote data, to send it to users that try to log back in
 String? currentVote;
+
+/// Stores what currentVote contains but in a Map
 Map<String,dynamic>? currentVoteInfo;
 
+/// Completer used to track if the session data was well received
 Completer<bool> receivedSessionData = Completer<bool>();
+
+/// String containing the session password sent by the MP
 String sessionPassword = "";
+
+/// DEPRECATED - List containing the trusted emails by the user of the MP
+///
+/// Was initially here to get a better security, by getting only trusted emails access the web app, through CAS Auth
 List<String> trustedEmails = [];
 
+/// Buffer used when large messages are sent through the MP Socket
 StringBuffer sink = StringBuffer();
 
-
+/// Function which gets the JWT key from the OS keychain. If non-existant, creates it and stores it in the keychain
+///
+/// Returns a String with the JWT key used to authenticate users
 String getJWTKey(){
   String? registeredPassword = keyring.getPassword(httpServiceName, httpUsername);
   if (registeredPassword == null){
@@ -91,6 +152,9 @@ String getJWTKey(){
   return registeredPassword;
 }
 
+/// Function which creates the JWT if a user has been correctly logged in
+///
+/// Returns the JWT and the created token
 (JWT,String) createJWT(){
   Uuid uuidMachine = Uuid();
   final JWT jwt = JWT(
@@ -108,9 +172,10 @@ String getJWTKey(){
   return (jwt,token);
 }
 
+/// Function which is called when webClientNewUserHeader header is received from a WebSocket (web client)
 void addUser(String sender, String rawData, Socket masterSocket,  WebSocket clientSocket){
   if (!clients.containsKey(clientSocket) || clients.values.where((e) => e["uid"] != null && e["uid"] == sender).isEmpty){
-    print("User should have these emails ${trustedEmails} and this password ${sessionPassword}");
+    // print("User should have these emails ${trustedEmails} and this password ${sessionPassword}");
     Map<String,dynamic> requestData = jsonDecode(rawData);
     if (!requestData.containsKey("password") || !requestData.containsKey("name") || !requestData.containsKey("mail")) throw Exception("Bad header");
     if (authenticate(requestData["mail"], requestData["password"])){
@@ -135,10 +200,16 @@ void addUser(String sender, String rawData, Socket masterSocket,  WebSocket clie
   }
 }
 
+/// Function which tests if the password is correct or not
+/// NEEDS better implementation
 bool authenticate(email, password){
   return sessionPassword == password /*&& trustedEmails.contains(email)*/;
 }
-
+/// Function which checks if a JWT is still valid from
+///
+/// Returns 0 if the JWT is still valid
+/// Returns -1 if the JWT isn't recognized at all
+/// Returns -2 if the JWT expired
 int checkJWT(token){
   try
   {
@@ -159,7 +230,10 @@ int checkJWT(token){
     return -1;
   }
 }
-
+/// Functions which is called when webClientLogIn header is received, checks if the JWT is still valid and updates the associated webSocket if true
+///
+/// Takes a String which represents the SENDER field of a network request, a String which represents the DATA field of a network request (in a UTF-8 Format)
+/// , a Socket to send the messages back to the MP and a WebSocket to communicate with the concerned webSocket
 void logUserIn(String sender, String rawData, Socket masterSocket, WebSocket webSocket){
   Map<String,dynamic> requestData = jsonDecode(rawData);
   if (!requestData.containsKey("token")) throw Exception("Missing keys in rawData");
@@ -191,6 +265,9 @@ void logUserIn(String sender, String rawData, Socket masterSocket, WebSocket web
 
 }
 
+/// Functions which is called each times a messages from a WebSocket is received, decodes the header and calls the appropriate method
+///
+/// Takes the raw data (UTF-8) from the websocket, the WebSocket which sent the message and a Socket which represents the MP Socket (Master Program Socket)
 void processWebSocketMessage(dynamic data, WebSocket webSocket, Socket masterSocket){
   List<String> decodedMessage = data.split(";");
   if (decodedMessage.length < 3) throw Exception("Unrecognized format");
@@ -214,6 +291,9 @@ void processWebSocketMessage(dynamic data, WebSocket webSocket, Socket masterSoc
   }
 }
 
+/// Function which is Called when the mpSessionDataHeader Header is received, and adds the session data to the sessionPassword and trustedEmails
+///
+/// Takes a String which represent the SENDER field of a network message and the DATA field
 void addSessionData(String sender, String rawData){
   Map<String,dynamic> requestData = jsonDecode(rawData);
   if (!requestData.containsKey("sessionPassword") || !requestData.containsKey("trustedEmails")) throw Exception("Bad header");
@@ -225,6 +305,11 @@ void addSessionData(String sender, String rawData){
   receivedSessionData.complete(true);
 }
 
+/// Function which is called when the mpInitDataHeader is received and send the init data (jury data) to all the connected web clients
+/// Sends a confirmation message afterwards to the MP
+///
+/// Takes a String which represents the SENDER field of a network message and a String which represents the DATA field of a network message
+/// Takes the Socket which represents the MP socket to send the confirmation message
 void sendInitialData(String sender, String rawData, Socket masterSocket){
   for (var client in clients.keys){
     client.add("$initDataHeader;$httpServerIdentity;$rawData");
@@ -233,6 +318,10 @@ void sendInitialData(String sender, String rawData, Socket masterSocket){
   startedJury = true;
 }
 
+/// Function which is called when the mpLoginDataHeader is received and send the jury data to logged back in users
+///
+/// Takes a String which represents the SENDER field of a network message and a String which represents the DATA field of a network message
+/// Takes the Socket which represents the MP socket to send the confirmation message
 void sendDataToLoggedInUser(String sender, String rawData, Socket masterSocket){
   for (var client in waitingClientsForData){
     client.add("$wsLoginDataHeader;$httpServerIdentity;$rawData");
@@ -245,6 +334,10 @@ void sendDataToLoggedInUser(String sender, String rawData, Socket masterSocket){
   waitingClientsForData.clear();
 }
 
+/// Function which is called when the mpStartVoteHeader is received and send the startVote message to all connected web clients
+///
+/// Takes a String which represents the SENDER field of a network message and a String which represents the DATA field of a network message
+/// Takes the Socket which represents the MP socket to send the confirmation message
 void startVote(String sender, String rawData, Socket masterSocket){
 
   currentVote = rawData;
@@ -255,15 +348,20 @@ void startVote(String sender, String rawData, Socket masterSocket){
   masterSocket.write("${voteOkHeader};${httpServerIdentity};null");
 }
 
+/// Function which checks if there is an ongoing vote, called when a user logs back in and needs jury data
 bool isThereAVote(){
   return currentVote != null;
 }
 
+/// Functions which checks if a user has the right to vote according to its JWT
 bool hasTheRightToVote(String token){
   bool hasVoted = currentVoteInfo?.containsKey(token) ?? false;
   return checkJWT(token) == 0 && !hasVoted;
 }
-
+/// Function which is called when webClientVoteUpdate header is received, sends the vote update from the web client to the MP
+///
+/// Takes a String which represents the SENDER field of a network message and a String which represents the DATA field of a network message
+/// Takes the Socket which represents the MP socket to send the vote update data
 void sendVoteUpdate(String sender, String rawData, Socket masterSocket){
   Map<String,dynamic> data = jsonDecode(rawData);
   if (hasTheRightToVote(data["token"])){
@@ -275,6 +373,11 @@ void sendVoteUpdate(String sender, String rawData, Socket masterSocket){
   }
 }
 
+
+/// Function which is called when mpStopVoteHeader header is received, it broadcasts this message to all connected web clients
+///
+/// Takes a String which represents the SENDER field of a network message and a String which represents the DATA field of a network message
+/// Takes the Socket which represents the MP socket to send the vote update data
 void stopVote(String sender, String rawData, Socket masterSocket){
   currentVote = null;
   currentVoteInfo = null;
@@ -284,6 +387,9 @@ void stopVote(String sender, String rawData, Socket masterSocket){
   masterSocket.write("${voteEndHeader};${httpServerIdentity};null");
 }
 
+/// Function which is called when the mpSessionUpdate header is received, broadcasting the session update to all connected web clients
+///
+/// Takes a String which represents the SENDER field of a network message and a String which represents the DATA field of a network message
 void sendSessionUpdate(String sender, String rawData){
   if (startedJury){
     for (var client in clients.keys){
@@ -292,7 +398,10 @@ void sendSessionUpdate(String sender, String rawData){
   }
 }
 
-void processMasterProgramMessage(List<int> data,masterSocket){
+/// Function which is called each time there is a new message on the MP Socket, it processes it by taking out the header and calling the appropriate function
+///
+/// Takes a List of integers (which represents raw bytes in Dart) which represents the message and a Socket which represents the MP Socket
+void processMasterProgramMessage(List<int> data, Socket masterSocket){
   String receivedData = "";
   if (data.length > 2048 || sink.isNotEmpty){
     print("[NETWORK] - processMPMessages : Large data waiting for all the packets...");
@@ -351,6 +460,10 @@ void processMasterProgramMessage(List<int> data,masterSocket){
 
 }
 
+/// Function that listens for webSockets connections and messages, calls the processWSMessage function each times a new message is received
+///
+/// Takes an HTTP Request which should be the WS request (throws an error otherwise), a Socket which represents the MP Socket
+/// and the Dictionnary of all connected clients, to either add an entry it if there is a new client, or update an entry if a clients logs back in
 Future<void> listenForWebSockets(HttpRequest request, Socket masterSocket, Map<WebSocket,Map<String,dynamic>>clients) async {
   print("[NETWORK] - New connection from WebSocket");
   if (WebSocketTransformer.isUpgradeRequest(request)){
@@ -373,6 +486,9 @@ Future<void> listenForWebSockets(HttpRequest request, Socket masterSocket, Map<W
   }
 }
 
+/// Function that listens for MP messages on the MP Socket, calls the processMasterProgramMessage function each times a new messages is received
+///
+/// Takes a Socket which represents the MP Socket
 Future<void> listenForMasterProgram(socket) async{
   socket.listen((data){
     print("[NETWORK] - New message from Master Program");
@@ -380,6 +496,7 @@ Future<void> listenForMasterProgram(socket) async{
   });
 }
 
+/// Middleware which force the navigator to not cache the app (doesn't work on Safari)
 Middleware get _noCacheMiddleware {
   return (Handler innerHandler) {
     return (Request request) async {
@@ -394,10 +511,9 @@ Middleware get _noCacheMiddleware {
   };
 }
 
-void isAuthenticated(){
-
-}
-
+/// Function which broadcasts a messages to all connected web clients
+///
+/// Takes a String which represents the raw data to send
 void broadcastMessageToWS(String data){
   for (MapEntry<WebSocket,Map<String,dynamic>> client in clients.entries){
     if (!client.value.containsKey("token")){
@@ -409,19 +525,53 @@ void broadcastMessageToWS(String data){
     }
   }
 }
+
+Future<InternetAddress> getNetworkInterfaceIp() async{
+  NetworkInterface? selectedInterface;
+  int selectedAdressIndex = -1;
+  List<NetworkInterface> interfaces = await NetworkInterface.list();
+  for (var interface in interfaces){
+    print("----Interface Info----");
+    print(interface.name);
+    print(interface.addresses);
+    InternetAddress? selectedAddress = interface.addresses.where((e) => !e.isLinkLocal && !e.isLoopback && (e.type != InternetAddressType.IPv6)).firstOrNull;
+    if (selectedAddress != null){
+      selectedAdressIndex = interface.addresses.indexOf(selectedAddress);
+      selectedInterface = interface;
+      break;
+    }
+    print("----------------------");
+  }
+  if (selectedInterface == null || selectedAdressIndex == -1){
+    throw Exception("Unable to find an correct IP adress");
+  }
+  return selectedInterface.addresses[selectedAdressIndex];
+}
+/// Main function which is the entrypoint of the program
 void main() async{
-  socket = await Socket.connect(masterProgamIP, PORT);
+  // Trying to establish a connection with the Master program
+  socket = await Socket.connect(masterProgamIP, masterProgramPORT);
   print("Connected to mob'INSA software");
+  // Sending a message to acknowledge that we are indeed connected to the MP
+  print(httpInitRawData);
+  InternetAddress selectedAdress = await getNetworkInterfaceIp();
+  httpInitRawData = '{"name" :"MobINSAHTTPServer - v1.0.0", "ipaddr" : "${selectedAdress.address}", "hostaddr" : "${Platform.localHostname}"}';
   socket.write("$httpInitHeader;$httpServerIdentity;$httpInitRawData");
+  // Generating the X509 certificate for establishing an HTTPS connection with web clients
   await generateCertificateWithBasicUtils();
+  // Retrieving the generated certificate
   final context = SecurityContext()
     ..useCertificateChain('cert.pem') // certificat (ou chaîne complète)
     ..usePrivateKey('key.pem');
+  // Starting to listen to the master program messages
   listenForMasterProgram(socket);
+  // Waiting to receive the sessionData from the master program
   bool sessionDataStatus = await receivedSessionData.future;
+  // If the sessionDataStatus is false, it means there was an error involving the session data retrieval process
   if (!sessionDataStatus){
-    throw "No Session Data was received";
+    throw Exception("No Session Data was received");
   }
+  // Creating the static handler for having a HTTP Server
   final staticHandler = createStaticHandler(
     'web',
     defaultDocument: 'index.html',
@@ -432,14 +582,17 @@ void main() async{
       .addHandler(staticHandler);
 
   late HttpServer server;
+  // if in a debug environment, serve the webapp with HTTP
   if (DEBUG){
     server = await HttpServer.bind(httpIP, httpPORT);
   }
+  // Else, use HTTPS for TLS encryption
   else{
     server = await HttpServer.bindSecure(httpIP, httpPORT,context);
   }
 
   print("Started HTTP Server");
+  // Process each HTTP request and furnish the associated response
   await for (HttpRequest request in server){
     if (request.uri.path == '/ws'){
       listenForWebSockets(request, socket, clients);
