@@ -51,8 +51,7 @@ jobs:
         with:
           name: release-windows-x86
           path: releases/${{ steps.get_version.outputs.version }}/windows_x86/*.zip
-          if-no-files-found:
-            error:"Failed to retrieve the file"
+
 
   release:
     needs: build
