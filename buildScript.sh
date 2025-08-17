@@ -44,11 +44,11 @@ mv mobinsa_web/build/web $RELEASE_FOLDER/
 cd ${RELEASE_FOLDER}
 
 if [[ "$PLATFORM" = "windows" ]]; then
-    powershell.exe -Command "Compress-Archive -Path . -DestinationPath mobinsaHTTPServer_v${VERSION}_${PLATFORM}..zip -Force"
+    powershell.exe -Command "Compress-Archive -Path . -DestinationPath mobinsaHTTPServer_${PLATFORM}_${ARCH}.zip -Force"
 	echo "Zipped the archive correctly"
 	ls
 else	
-	zip -r mobinsaHTTPServer_v${VERSION}_${PLATFORM}.zip .
+	zip -r mobinsaHTTPServer_${PLATFORM}_${ARCH}.zip .
 fi
 # Cleaning up
 mkdir -p unzipped
