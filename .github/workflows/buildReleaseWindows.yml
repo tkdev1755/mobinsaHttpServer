@@ -43,14 +43,14 @@ jobs:
         run: bash -c "chmod +x ./buildScript.sh"
 
       - name: Run build script
-        run: bash -c "./buildScript.sh '${{ steps.get_version.outputs.version }}' 'windows' 'x86'"
+        run: bash -c "./buildScript.sh '${{ steps.get_version.outputs.version }}' 'windows' 'x64'"
       - name : Check for release zip presence
         run : bash -c "ls"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-windows-x86
-          path: releases/${{ steps.get_version.outputs.version }}/windows_x86/*.zip
+          path: releases/${{ steps.get_version.outputs.version }}/windows_x64/*.zip
 
 
   release:

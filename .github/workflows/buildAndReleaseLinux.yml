@@ -39,13 +39,13 @@ jobs:
         run: chmod +x ./buildScript.sh
 
       - name: Run build script
-        run: ./buildScript.sh "${{ steps.get_version.outputs.version }}" "linux" "x86"
+        run: ./buildScript.sh "${{ steps.get_version.outputs.version }}" "linux" "x64"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-linux-x86
-          path: releases/${{ steps.get_version.outputs.version }}/linux_x86/*.zip
+          path: releases/${{ steps.get_version.outputs.version }}/linux_x64/*.zip
           if-no-file-found:
             error:"Failed to retrieve the file"
 

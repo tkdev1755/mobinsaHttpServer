@@ -36,15 +36,13 @@ jobs:
         run: chmod +x ./buildScript.sh
 
       - name: Run build script
-        run: ./buildScript.sh "${{ steps.get_version.outputs.version }}" "macos" "x86"
+        run: ./buildScript.sh "${{ steps.get_version.outputs.version }}" "macos" "x64"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-linux-x86
-          path: releases/${{ steps.get_version.outputs.version }}/macos_x86/*.zip
-          if-no-file-found:
-            error:"Failed to retrieve the file"
+          path: releases/${{ steps.get_version.outputs.version }}/macos_x64/*.zip
 
   release:
     needs: build
