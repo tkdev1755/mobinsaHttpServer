@@ -8,7 +8,7 @@ on:
   workflow_dispatch: # Permet de le lancer à la main
 
 jobs:
-  buildx64:
+  buildX64:
     if: "contains(github.event.head_commit.message, '[RELEASE]') || github.event_name == 'workflow_dispatch'"
     runs-on: ubuntu-latest
     outputs:
@@ -91,7 +91,7 @@ jobs:
             error:"Failed to retrieve the file"
 
   release:
-    needs: build
+    needs: buildX64
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
