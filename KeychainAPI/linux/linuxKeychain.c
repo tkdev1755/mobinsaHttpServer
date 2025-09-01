@@ -2,8 +2,8 @@
 #include <libsecret/secret.h>
 #include <string.h>
 #include <stdio.h>
-#define SCHEMA_NAME "com.celeneManager.userInfo"
-#define ATTRIBUTE_KEY "celeneManager UserInfo"
+#define SCHEMA_NAME "com.insacvl.mobinsaServer"
+#define ATTRIBUTE_KEY "mobinsaServer jwtKey"
 
 static const SecretSchema *get_schema() {
     static const SecretSchema schema = {
