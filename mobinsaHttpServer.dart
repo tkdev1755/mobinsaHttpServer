@@ -560,8 +560,6 @@ void main() async{
   httpInitRawData = '{"name" :"MobINSAHTTPServer - v1.0.0", "ipaddr" : "${selectedAdress.address}", "hostaddr" : "${Platform.localHostname}"}';
   socket.write("$httpInitHeader;$httpServerIdentity;$httpInitRawData");
   // Generating the X509 certificate for establishing an HTTPS connection with web clients
-  print("CURRENT WORKING DIRECTORY ${Directory.current}");
-  print("CURRENT WORKING DIRECTORY from path package ${path.current}");
   await generateCertificateWithBasicUtils();
   // Retrieving the generated certificate
   final context = SecurityContext()
