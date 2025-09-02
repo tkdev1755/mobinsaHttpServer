@@ -8,7 +8,7 @@ import 'package:shelf_static/shelf_static.dart';
 import 'package:uuid/uuid.dart';
 import 'KeychainAPI/keyring.dart';
 import 'certificateGenerator.dart';
-
+import 'package:path/path.dart' as path;
 /// Keyring to store secrets in a secure manner
 final Keyring keyring = Keyring();
 /// Name of the app in the keychain of the OS
@@ -358,6 +358,7 @@ bool hasTheRightToVote(String token){
   bool hasVoted = currentVoteInfo?.containsKey(token) ?? false;
   return checkJWT(token) == 0 && !hasVoted;
 }
+
 /// Function which is called when webClientVoteUpdate header is received, sends the vote update from the web client to the MP
 ///
 /// Takes a String which represents the SENDER field of a network message and a String which represents the DATA field of a network message
@@ -559,6 +560,8 @@ void main() async{
   httpInitRawData = '{"name" :"MobINSAHTTPServer - v1.0.0", "ipaddr" : "${selectedAdress.address}", "hostaddr" : "${Platform.localHostname}"}';
   socket.write("$httpInitHeader;$httpServerIdentity;$httpInitRawData");
   // Generating the X509 certificate for establishing an HTTPS connection with web clients
+  print("CURRENT WORKING DIRECTORY ${Directory.current}");
+  print("CURRENT WORKING DIRECTORY from path package ${path.current}");
   await generateCertificateWithBasicUtils();
   // Retrieving the generated certificate
   final context = SecurityContext()
