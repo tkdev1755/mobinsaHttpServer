@@ -45,7 +45,7 @@ class WindowsKeychainBindings extends KeyringBase{
   late final DeletePasswordDart _deletePassword;
   WindowsKeychainBindings(){
     final _lib = Platform.isWindows
-        ? DynamicLibrary.open(path.join(path.current, "libkeychain.dll"))
+        ? DynamicLibrary.open(path.join(libBaseDir, "libkeychain.dll"))
         : throw UnsupportedError('Fonctionne uniquement sur Windows');
 
     _setPassword = _lib

@@ -1,11 +1,13 @@
 import 'dart:io';
+import '../mobinsaHttpServer.dart';
 import 'linux/linuxKeychainAPI.dart';
 import 'windows/windowsKeychainAPI.dart';
 
 import 'macos/macOSKeychainAPI.dart';
 String DEV_BASEDIR = !Platform.isWindows ? "${Platform.environment['HOME']}/devSTI/projApp/dart_httpServer" : "${Platform.environment['USERPROFILE']}/dart_httpServer/";
-String BASEDIR = !Platform.isWindows ? "${Platform.environment['HOME']}/dartHTTPServer/" : "${Platform.environment['USERPROFILE']}/dartHTTPServer/";
-String WIN_BASEDIR = Platform.isWindows ? "${Platform.environment['USERPROFILE']}\\dartHTTPserver\\" : "";
+
+String libBaseDir = getExecutableAbsolutePath();
+
 bool DEBUG = bool.fromEnvironment('DEBUG', defaultValue: false);
 /// {@category SAFETY}
 /// Classe abstraite pour intéragir avec les API trousseau de clés des OS (linux,windows,macos)
