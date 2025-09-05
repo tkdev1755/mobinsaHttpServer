@@ -2,15 +2,17 @@ import 'dart:io';
 
 import 'package:basic_utils/basic_utils.dart';
 
+String certPath = Platform.isMacOS ? "${Platform.resolvedExecutable}/cert.pem": "cert.pem";
+String keyPath = Platform.isMacOS ? "${Platform.resolvedExecutable}/key.pem": "key.pem";
 
 Future<bool> checkForCertificate() async{
-  if (!File("cert.pem").existsSync() || !File("key.pem").existsSync()){
+  if (!File(certPath).existsSync() || !File(keyPath).existsSync()){
     return false;
   }
   try{
     SecurityContext? context = SecurityContext()
-      ..useCertificateChain('cert.pem') // certificat (ou chaîne complète)
-      ..usePrivateKey('key.pem');
+      ..useCertificateChain(keyPath) // certificat (ou chaîne complète)
+      ..usePrivateKey(certPath);
     context = null;
     return true;
   }
@@ -43,8 +45,10 @@ Future<void> generateCertificateWithBasicUtils() async {
   var x509PEM = X509Utils.generateSelfSignedCertificate(secondKeyPair.privateKey, csr, 365);
   final keyPem = CryptoUtils.encodeEcPrivateKeyToPem(secondKeyPair.privateKey as ECPrivateKey);
   // Sauvegarder les fichiers
-  File('cert.pem').writeAsStringSync(x509PEM);
-  File('key.pem').writeAsStringSync(keyPem);
+  // Saving the cert.pem file
+  File(certPath).writeAsStringSync(x509PEM);
+  // Saving the key.pem file
+  File(keyPath).writeAsStringSync(keyPem);
 
   print('Certificat généré avec basic_utils :');
   print('- cert.pem');

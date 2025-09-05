@@ -563,7 +563,7 @@ void main() async{
   await generateCertificateWithBasicUtils();
   // Retrieving the generated certificate
   final context = SecurityContext()
-    ..useCertificateChain('cert.pem') // certificat (ou chaîne complète)
+    ..useCertificateChain('cert.pem')
     ..usePrivateKey('key.pem');
   // Starting to listen to the master program messages
   listenForMasterProgram(socket);
@@ -573,9 +573,10 @@ void main() async{
   if (!sessionDataStatus){
     throw Exception("No Session Data was received");
   }
+  String webPath = Platform.isMacOS ? "${Platform.resolvedExecutable}/web" : "web";
   // Creating the static handler for having a HTTP Server
   final staticHandler = createStaticHandler(
-    'web',
+    webPath,
     defaultDocument: 'index.html',
   );
   final handler = Pipeline()
