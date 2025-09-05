@@ -135,6 +135,16 @@ List<String> trustedEmails = [];
 /// Buffer used when large messages are sent through the MP Socket
 StringBuffer sink = StringBuffer();
 
+
+/// Function which gets the absolute path of the executable, not the working directory it was launched from
+///
+/// Necessary as the web client and certificates are bundled in the same folder as the executable if downoloaded correctly
+///
+String getExecutableAbsolutePath(){
+  List<String> execPath = Platform.resolvedExecutable.split("/");
+  execPath.removeLast();
+  return execPath.join("/");
+}
 /// Function which gets the JWT key from the OS keychain. If non-existant, creates it and stores it in the keychain
 ///
 /// Returns a String with the JWT key used to authenticate users
@@ -563,8 +573,8 @@ void main() async{
   await generateCertificateWithBasicUtils();
   // Retrieving the generated certificate
   final context = SecurityContext()
-    ..useCertificateChain('cert.pem')
-    ..usePrivateKey('key.pem');
+    ..useCertificateChain('${getExecutableAbsolutePath()}/cert.pem')
+    ..usePrivateKey('${getExecutableAbsolutePath()}/key.pem');
   // Starting to listen to the master program messages
   listenForMasterProgram(socket);
   // Waiting to receive the sessionData from the master program
@@ -573,7 +583,7 @@ void main() async{
   if (!sessionDataStatus){
     throw Exception("No Session Data was received");
   }
-  String webPath = Platform.isMacOS ? "${Platform.resolvedExecutable}/web" : "web";
+  String webPath = Platform.isMacOS ? "${getExecutableAbsolutePath()}/web" : "web";
   // Creating the static handler for having a HTTP Server
   final staticHandler = createStaticHandler(
     webPath,

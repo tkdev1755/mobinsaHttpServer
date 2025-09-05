@@ -2,8 +2,12 @@ import 'dart:io';
 
 import 'package:basic_utils/basic_utils.dart';
 
-String certPath = Platform.isMacOS ? "${Platform.resolvedExecutable}/cert.pem": "cert.pem";
-String keyPath = Platform.isMacOS ? "${Platform.resolvedExecutable}/key.pem": "key.pem";
+import 'mobinsaHttpServer.dart';
+
+
+
+String certPath = Platform.isMacOS ? "${getExecutableAbsolutePath()}/cert.pem": "cert.pem";
+String keyPath = Platform.isMacOS ? "${getExecutableAbsolutePath()}/key.pem": "key.pem";
 
 Future<bool> checkForCertificate() async{
   if (!File(certPath).existsSync() || !File(keyPath).existsSync()){
