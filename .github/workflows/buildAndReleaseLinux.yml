@@ -49,46 +49,7 @@ jobs:
           if-no-file-found:
             error:"Failed to retrieve the file"
 
-  buildArm64:
-    if: "contains(github.event.head_commit.message, '[RELEASE]') || github.event_name == 'workflow_dispatch'"
-    runs-on: ubuntu-24.04-arm
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Flutter & Dart
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          flutter-version: '3.32.5'
-
-      - name: Install dependencies (libsecret)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsecret-1-dev libsecret-tools gcc make
-      - name: Extract version from pubspec.yaml
-        id: get_version
-        shell: bash
-        run: |
-          VERSION=$(grep '^version:' pubspec.yaml | cut -d ' ' -f2)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Make script executable
-        run: chmod +x ./buildScript.sh
-
-      - name: Run build script
-        run: ./buildScript.sh "${{ steps.get_version.outputs.version }}" "linux" "arm64"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-linux-arm64
-          path: releases/${{ steps.get_version.outputs.version }}/linux_arm64/*.zip
-          if-no-file-found:
-            error:"Failed to retrieve the file"
 
   release:
     needs: buildX64
