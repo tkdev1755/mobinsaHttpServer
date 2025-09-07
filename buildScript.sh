@@ -44,7 +44,7 @@ mv mobinsa_web/build/web $RELEASE_FOLDER/
 cd ${RELEASE_FOLDER}
 
 if [[ "$PLATFORM" = "windows" ]]; then
-    powershell.exe -Command "Compress-Archive -Path . -DestinationPath mobinsaHTTPServer_${PLATFORM}_${ARCH}.zip -Force"
+    powershell.exe -Command "Compress-Archive -Path .\ -DestinationPath mobinsaHTTPServer_${PLATFORM}_${ARCH}.zip -Force"
 	echo "Zipped the archive correctly"
 	ls
 else	
