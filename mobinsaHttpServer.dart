@@ -83,13 +83,14 @@ const String sessionUpdateHeader = "sessionUpdate";
 
 ///  MASTER PROGRAM HEADERS
 ///  mp stands for Master Program
-///  The Description for these headers can be found in the MobINSA repo, at /github.com/tkdev1755/mobinsa/blob/mobinsa_collaborative/lib/model/networkManager.dart
+///  The Description for these headers can be found in the MobINSA repo, at https://github.com/tkdev1755/mobinsa/blob/mobinsa_collaborative/lib/model/networkManager.dart
 const mpSessionDataHeader = "sessionDataExchange";
 const mpInitDataHeader = "initData";
 const mpStartVoteHeader = "startVote";
 const mpStopVoteHeader = "closeVote";
 const mpLoginDataHeader = "loginData";
 const mpSessionUpdate = "sessionUpdate";
+const mpCloseConnections = "closeConnections";
 /// END OF MASTER PROGRAM HEADERS
 
 /// WS SPECIFIC HEADERS
@@ -135,6 +136,8 @@ List<String> trustedEmails = [];
 /// Buffer used when large messages are sent through the MP Socket
 StringBuffer sink = StringBuffer();
 
+/// HTTP server which is used to serve the web app
+HttpServer? server;
 
 /// Function which gets the absolute path of the executable, not the working directory it was launched from
 ///
@@ -409,6 +412,19 @@ void sendSessionUpdate(String sender, String rawData){
   }
 }
 
+
+void closeSoftware(String sender, String rawData, Socket masterSocket,
+    {bool crash = false}) async {
+  for (WebSocket client in clients.keys){
+    await client.close(crash ? 4002: 1000, crash ? 'Server Crashed' : 'End of session');
+  }
+  await masterSocket.close();
+  if (server == null){
+    throw Exception("HTTP Server is not initialized");
+  }
+  await server!.close(force: true);
+  exit(0);
+}
 /// Function which is called each time there is a new message on the MP Socket, it processes it by taking out the header and calling the appropriate function
 ///
 /// Takes a List of integers (which represents raw bytes in Dart) which represents the message and a Socket which represents the MP Socket
@@ -463,6 +479,10 @@ void processMasterProgramMessage(List<int> data, Socket masterSocket){
       print("[NETWORK] - Message type : Session update");
       sendSessionUpdate(sender, rawData);
       break;
+    case mpCloseConnections:
+      closeSoftware(sender, rawData, masterSocket);
+      print("[NETWORK] - Message type : Closed connections, now closing the software");
+      break;
     default:
       throw ("Unknown Header from Master program");
 
@@ -500,11 +520,21 @@ Future<void> listenForWebSockets(HttpRequest request, Socket masterSocket, Map<W
 /// Function that listens for MP messages on the MP Socket, calls the processMasterProgramMessage function each times a new messages is received
 ///
 /// Takes a Socket which represents the MP Socket
-Future<void> listenForMasterProgram(socket) async{
+Future<void> listenForMasterProgram(Socket socket) async{
   socket.listen((data){
     print("[NETWORK] - New message from Master Program");
     processMasterProgramMessage(data,socket);
-  });
+  }, onError : (error, stacktrace){
+    onErrorMasterProgram(socket, );
+  },
+    onDone: (){
+      closeSoftware("", "", socket, crash: true);
+    }
+  );
+}
+
+void onErrorMasterProgram(socket){
+  closeSoftware("", "", socket, crash: true);
 }
 
 /// Middleware which force the navigator to not cache the app (doesn't work on Safari)
@@ -589,24 +619,30 @@ void main() async{
     webPath,
     defaultDocument: 'index.html',
   );
+
   final handler = Pipeline()
       .addMiddleware(logRequests())
       .addMiddleware(_noCacheMiddleware)
       .addHandler(staticHandler);
 
-  late HttpServer server;
+
+
   // if in a debug environment, serve the webapp with HTTP
   if (DEBUG){
     server = await HttpServer.bind(httpIP, httpPORT);
+    print("Serving an HTTPS server on ${httpIP}:${httpPORT}");
   }
   // Else, use HTTPS for TLS encryption
   else{
     server = await HttpServer.bindSecure(httpIP, httpPORT,context);
+    print("Serving an HTTPS server on ${httpIP}:${httpPORT}");
   }
-
+  if (server == null){
+    throw Exception("Server hasn't been initialized properly");
+  }
   print("Started HTTP Server");
   // Process each HTTP request and furnish the associated response
-  await for (HttpRequest request in server){
+  await for (HttpRequest request in server!){
     if (request.uri.path == '/ws'){
       listenForWebSockets(request, socket, clients);
     }
