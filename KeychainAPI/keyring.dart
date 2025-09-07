@@ -38,6 +38,9 @@ class Keyring {
     else if (Platform.isWindows){
       base = WindowsKeychainBindings();
     }
+    else{
+      throw Exception("Unsupported Platform");
+    }
   }
 
   /// Fonction récupèrant un mot de passe donné depuis le trousseau de clé.
