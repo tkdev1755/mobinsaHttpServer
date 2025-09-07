@@ -53,10 +53,18 @@ Future<void> generateCertificateWithBasicUtils() async {
   var x509PEM = X509Utils.generateSelfSignedCertificate(secondKeyPair.privateKey, csr, 365);
   final keyPem = CryptoUtils.encodeEcPrivateKeyToPem(secondKeyPair.privateKey as ECPrivateKey);
   // Sauvegarder les fichiers
+  File certFile = File(certPath);
+  File keyFile = File(keyPath);
+  if (!certFile.existsSync()){
+    certFile.createSync(recursive: true);
+  }
+  if (!keyFile.existsSync()){
+    certFile.createSync(recursive: true);
+  }
   // Saving the cert.pem file
-  File(certPath).writeAsStringSync(x509PEM);
+  certFile.writeAsStringSync(x509PEM);
   // Saving the key.pem file
-  File(keyPath).writeAsStringSync(keyPem);
+  keyFile.writeAsStringSync(keyPem);
 
   print('Certificat généré avec basic_utils :');
   print('- cert.pem');
