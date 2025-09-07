@@ -603,8 +603,8 @@ void main() async{
   await generateCertificateWithBasicUtils();
   // Retrieving the generated certificate
   final context = SecurityContext()
-    ..useCertificateChain('${getExecutableAbsolutePath()}/cert.pem')
-    ..usePrivateKey('${getExecutableAbsolutePath()}/key.pem');
+    ..useCertificateChain(certPath)
+    ..usePrivateKey(keyPath);
   // Starting to listen to the master program messages
   listenForMasterProgram(socket);
   // Waiting to receive the sessionData from the master program
