@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../extensions.dart';
 import '../mobinsaHttpServer.dart';
 import 'linux/linuxKeychainAPI.dart';
 import 'windows/windowsKeychainAPI.dart';
@@ -6,9 +7,8 @@ import 'windows/windowsKeychainAPI.dart';
 import 'macos/macOSKeychainAPI.dart';
 String DEV_BASEDIR = !Platform.isWindows ? "${Platform.environment['HOME']}/devSTI/projApp/dart_httpServer" : "${Platform.environment['USERPROFILE']}/dart_httpServer/";
 
-String libBaseDir = getExecutableAbsolutePath();
+String libBaseDir = !DEBUG ? getExecutableAbsolutePath() : String.fromEnvironment("libDir", defaultValue: "."); 
 
-bool DEBUG = bool.fromEnvironment('DEBUG', defaultValue: false);
 /// {@category SAFETY}
 /// Classe abstraite pour intéragir avec les API trousseau de clés des OS (linux,windows,macos)
 abstract class KeyringBase{

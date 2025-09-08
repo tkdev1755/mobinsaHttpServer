@@ -9,6 +9,8 @@ import 'package:uuid/uuid.dart';
 import 'KeychainAPI/keyring.dart';
 import 'certificateGenerator.dart';
 import 'package:path/path.dart' as path;
+
+import 'extensions.dart';
 /// Keyring to store secrets in a secure manner
 final Keyring keyring = Keyring();
 /// Name of the app in the keychain of the OS
@@ -144,6 +146,9 @@ HttpServer? server;
 /// Necessary as the web client and certificates are bundled in the same folder as the executable if downoloaded correctly
 ///
 String getExecutableAbsolutePath(){
+  if (DEBUG){
+    return ".";
+  }
   List<String> execPath = Platform.resolvedExecutable.split("/");
   execPath.removeLast();
   return execPath.join("/");
@@ -590,7 +595,6 @@ Future<InternetAddress> getNetworkInterfaceIp() async{
 }
 /// Main function which is the entrypoint of the program
 void main() async{
-
   // Trying to establish a connection with the Master program
   socket = await Socket.connect(masterProgamIP, masterProgramPORT);
   print("Connected to mob'INSA software");
@@ -613,7 +617,7 @@ void main() async{
   if (!sessionDataStatus){
     throw Exception("No Session Data was received");
   }
-  String webPath = Platform.isMacOS ? "${getExecutableAbsolutePath()}/web" : "web";
+  String webPath = !DEBUG ? "${getExecutableAbsolutePath()}/web" : webDEBUGPath;
   // Creating the static handler for having a HTTP Server
   final staticHandler = createStaticHandler(
     webPath,
@@ -630,7 +634,7 @@ void main() async{
   // if in a debug environment, serve the webapp with HTTP
   if (DEBUG){
     server = await HttpServer.bind(httpIP, httpPORT);
-    print("Serving an HTTPS server on ${httpIP}:${httpPORT}");
+    print("Serving an HTTP server on ${httpIP}:${httpPORT}");
   }
   // Else, use HTTPS for TLS encryption
   else{

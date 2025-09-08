@@ -47,6 +47,7 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
         throw Exception("No student id for choiceVote");
       }
       int studentID = data["studentID"];
+      print(students[studentID]);
       if (!students.keys.contains(studentID)){
         throw Exception("Student ID doesn't exists for choice Vote");
       }
@@ -72,7 +73,9 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
 
   void focusStudent(int id){
     int index = students.keys.toList().indexOf(id);
-    selectStudentByIndex(index);
+    print("Index associated to id ${id} is ${index}");
+    selectStudentByIndex(index, fromID: true, id: id);
+
   }
 
   Color interrankingColor(List<MapEntry<int,Student>> students, int index){
@@ -665,18 +668,30 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
       ),
     );
   }
-  void selectStudentByIndex(int index) {
+  void selectStudentByIndex(int index, {bool fromID=false, int? id}) {
+    print("fromID = ${fromID} -> value ? ${id}");
     if (index >= 0 && index < students.length) {
+      print("this is the researched student ${students[index]}");
+      int selectedID = students.keys.toList()[index];
       setState(() {
-        selectedStudent = students[students.keys.toList()[index]];
+        if (fromID && id != null){
+          selectedStudent = students[id];
+          print("Selected student by ID from keys of map");
+        }
+        else{
+          selectedStudent = students[students.keys.toList()[index]];
+          print("Selected Student by index from list");
+
+        }
         currentStudentIndex = index;
+        print("CURRENT STUDENT INDEX IS $selectedID");
         expandedStudentsChoice = List.generate(
-            students[index]!.choices.values.toList().length,
+            students[selectedID]!.choices.values.toList().length,
                 (_) => false
         );
         // Initialiser showCancelButton pour chaque choix en fonction de l'état actuel
         showCancelButton.clear();
-        students[index]!.choices.forEach((key, choice) {
+        students[selectedID]!.choices.forEach((key, choice) {
           // Afficher le bouton annuler si le choix est accepté ou refusé
           showCancelButton[key] = (choice.student.accepted == choice) ||
               choice.student.refused.contains(choice);
