@@ -595,10 +595,11 @@ Future<InternetAddress> getNetworkInterfaceIp() async{
 }
 /// Main function which is the entrypoint of the program
 void main() async{
-  String webPath = !DEBUG ? "${getExecutableAbsolutePath()}/web" : webDEBUGPath;
+  String webPath = (!DEBUG) ? "${getExecutableAbsolutePath()}/web" : webDEBUGPath;
   // Trying to establish a connection with the Master program
   socket = await Socket.connect(masterProgamIP, masterProgramPORT);
   print("Connected to mob'INSA software");
+  print("Debug status ${DEBUG}");
   print("The current paths are \n${certPath} • Certificate Path \n${keyPath} • Key path\n${webPath} • Web folder path");
   // Sending a message to acknowledge that we are indeed connected to the MP
   print(httpInitRawData);
