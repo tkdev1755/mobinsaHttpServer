@@ -40,7 +40,7 @@ extension ObjectLines on Object{
 
 
 bool DEBUG = bool.fromEnvironment('DEBUG', defaultValue: false);
-
+String slash = Platform.isWindows ? "\\" : "/";
 String webDEBUGPath = String.fromEnvironment("webPath", defaultValue: "web");
 void logger(dynamic content){
   if (DEBUG){

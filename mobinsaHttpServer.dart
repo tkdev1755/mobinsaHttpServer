@@ -150,10 +150,11 @@ String getExecutableAbsolutePath(){
     print("RETURNING DEBUG PATH");
     return ".";
   }
-  List<String> execPath = Platform.resolvedExecutable.split("/");
+  String slash = Platform.isWindows ? "\\" :"/";
+  List<String> execPath = Platform.resolvedExecutable.split(slash);
   print(execPath);
   execPath.removeLast();
-  return execPath.join("/");
+  return execPath.join(slash);
 }
 /// Function which gets the JWT key from the OS keychain. If non-existant, creates it and stores it in the keychain
 ///
@@ -532,7 +533,7 @@ Future<void> listenForMasterProgram(Socket socket) async{
     print("[NETWORK] - New message from Master Program");
     processMasterProgramMessage(data,socket);
   }, onError : (error, stacktrace){
-    onErrorMasterProgram(socket, );
+    onErrorMasterProgram(socket);
   },
     onDone: (){
       closeSoftware("", "", socket, crash: true);
@@ -597,7 +598,8 @@ Future<InternetAddress> getNetworkInterfaceIp() async{
 }
 /// Main function which is the entrypoint of the program
 void main() async{
-  String webPath = (!DEBUG) ? "${getExecutableAbsolutePath()}/web" : webDEBUGPath;
+
+  String webPath = (!DEBUG) ? "${getExecutableAbsolutePath()}${slash}web" : webDEBUGPath;
   // Trying to establish a connection with the Master program
   socket = await Socket.connect(masterProgamIP, masterProgramPORT);
   print("Connected to mob'INSA software");
