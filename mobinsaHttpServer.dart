@@ -147,9 +147,11 @@ HttpServer? server;
 ///
 String getExecutableAbsolutePath(){
   if (DEBUG){
+    print("RETURNING DEBUG PATH");
     return ".";
   }
   List<String> execPath = Platform.resolvedExecutable.split("/");
+  print(execPath);
   execPath.removeLast();
   return execPath.join("/");
 }
@@ -600,6 +602,7 @@ void main() async{
   socket = await Socket.connect(masterProgamIP, masterProgramPORT);
   print("Connected to mob'INSA software");
   print("Debug status ${DEBUG}");
+  print("Current ");
   print("The current paths are \n${certPath} • Certificate Path \n${keyPath} • Key path\n${webPath} • Web folder path");
   // Sending a message to acknowledge that we are indeed connected to the MP
   print(httpInitRawData);
