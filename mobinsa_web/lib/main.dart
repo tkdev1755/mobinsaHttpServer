@@ -38,7 +38,7 @@ Future<int> tryLoadSession(SessionHandler sessionHandler) async{
 }
 void main()  async {
   SharedPreferencesAsync sharedPreferences = SharedPreferencesAsync();
-  SessionHandler? sessionHandler = SessionHandler(sharedPreferences, (Map<String,dynamic> data){}, (Map<String,dynamic> data){});
+  SessionHandler? sessionHandler = SessionHandler(sharedPreferences, (Map<String,dynamic> data){}, (Map<String,dynamic> data){},(Map<String,dynamic> data){});
   await tryLoadSession(sessionHandler);
   runApp(MyApp(preferences: sharedPreferences,sessionHandler: sessionHandler,));
 }

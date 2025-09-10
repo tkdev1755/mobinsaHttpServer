@@ -22,7 +22,7 @@ final masterProgamIP = InternetAddress.loopbackIPv4;
 /// Port used to communicate with the Master Program (e.g mobinsa.exe, mobinsa.app or mobinsa)
 final masterProgramPORT = 7070;
 /// IP used to Serve the MobINSA web app
-final httpIP = InternetAddress.anyIPv4;
+final httpIP = DEBUG ? InternetAddress.loopbackIPv4 : InternetAddress.anyIPv4;
 /// Port used to Serve the MobINSA web app
 final httpPORT = 8080;
 
@@ -560,7 +560,7 @@ Middleware get _noCacheMiddleware {
   };
 }
 
-/// Function which broadcasts a messages to all connected web clients
+/// Function which broadcasts a messages to all connected web clients through WebSocket
 ///
 /// Takes a String which represents the raw data to send
 void broadcastMessageToWS(String data){

@@ -406,6 +406,7 @@ class Student {
   clearNetworkData(){
     networkData = null;
   }
+
   Map<String, dynamic> toJson(){
     Map<String,dynamic> choicesMap = choices.map((k,v) => MapEntry(k.toString(), v.toJson()));
     List<dynamic> refusedChoiceList = refused.map((e)=> e.toJson()).toList();

@@ -52,7 +52,8 @@ class SessionHandler with ChangeNotifier {
   StringBuffer sink = StringBuffer();
   Function(Map<String,dynamic> data) onVoteStart;
   Function(Map<String,dynamic> data) onSessionUpdate;
-  SessionHandler(this.preferences, this.onVoteStart, this.onSessionUpdate);
+  Function(Map<String,dynamic> data) onVoteStop;
+  SessionHandler(this.preferences, this.onVoteStart, this.onSessionUpdate, this.onVoteStop);
   String lastMessage = "";
   String _jwtToken  = "";
   String getWebSocketUrl() {
@@ -76,6 +77,8 @@ class SessionHandler with ChangeNotifier {
   }
 
   void stopVote(String sender, String rawData){
+    voteInfo = jsonDecode(rawData);
+    onVoteStop(voteInfo);
     hasStartedVote = false;
     notifyListeners();
   }

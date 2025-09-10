@@ -1,5 +1,6 @@
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -39,7 +40,23 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
   static const String netChoiceAccept = "choiceAccepted";
   static const String netChoiceRefusal = "choiceRefused";
   static const String netCancelAction = "choiceActionCancel";
+  bool _showVoteUpdateMessage = false;
+  String voteUpdateMessage = "";
+  String voteUpdateStudent = "";
+  int voteUpdateStudentID = -1;
+  Color? voteUpdateColor = Colors.grey;
   final PageController _controller = PageController();
+
+  void resetVoteMessage(){
+    _showVoteUpdateMessage = false;
+    print("RESETVOTE MESSAGE - Resetting everything");
+    Future.delayed(Duration(milliseconds: 700), (){
+      voteUpdateMessage = "";
+      voteUpdateStudent = "";
+      voteUpdateStudentID = -1;
+      voteUpdateColor = Colors.grey;
+    });
+  }
   void onVoteStart(Map<String,dynamic> data, {bool fromLogin=false}){
     print("vote data -> $data");
     if ((data.containsKey("voteType") && data["voteType"] == "choiceVote")){
@@ -71,12 +88,33 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
 
   }
 
-  void focusStudent(int id){
+  void onVoteStop(Map<String,dynamic> data){
+    if ((data.containsKey("voteType") && (data["voteType"] == "choiceVote" || data["voteType"] == "matchVote"))){
+      if (!data.containsKey("studentID")){
+        throw Exception("No student id for choiceVote");
+      }
+      int studentID = data["studentID"];
+      print(students[studentID]);
+      if (!students.keys.contains(studentID)){
+        throw Exception("Student ID doesn't exists for choice Vote");
+      }
+      students[studentID]?.clearNetworkData();
+      setState(() {
+
+      });
+    }
+    else{
+      throw Exception("Bad json data from vote start info");
+    }
+  }
+
+  void focusStudent(int id, {bool fromVoteUpdate=false}){
     int index = students.keys.toList().indexOf(id);
+    print("From vote update ? ${fromVoteUpdate}");
     print("Index associated to id ${id} is ${index}");
     selectStudentByIndex(index, fromID: true, id: id);
-
   }
+
 
   Color interrankingColor(List<MapEntry<int,Student>> students, int index){
     if(index!=0){
@@ -133,8 +171,8 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
     return checkIfChoiceVoteStarted() ?  widget.sessionHandler.voteInfo["studentID"] : -1;
   }
 
-  int getCurrentVoteStudentIndex(){
-    return checkIfChoiceVoteStarted() ?  (students.keys.toList().indexOf(widget.sessionHandler.voteInfo["studentID"])) : -1;
+  int getCurrentVoteStudentIndex({bool fromVoteUpdate=false}){
+    return (checkIfChoiceVoteStarted() || fromVoteUpdate)?  (students.keys.toList().indexOf(widget.sessionHandler.voteInfo["studentID"])) : -1;
   }
   void onSessionUpdate(Map<String,dynamic> data){
     if (!data.containsKey("updateType") || !data.containsKey("selectedChoice") || !data.containsKey("selectedStudent")){
@@ -155,40 +193,76 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
       case _DisplayApplicantsState.netChoiceAccept:
         schoolChoices[choiceID] = true;
         selectedChoice.accepted(selectedChoice.student);
+        voteUpdateMessage = "A eu son voeu pour ${selectedChoice.school.name}";
+        voteUpdateStudent = selectedStudent.name;
+        voteUpdateStudentID = selectedStudent.id;
+        voteUpdateColor = Colors.green[400];
+        _showVoteUpdateMessage = true;
         showCancelButton[choiceID] = true;
         if (mounted){
           setState(() {
 
           });
         }
+        Future.delayed(const Duration(seconds: 10), () {
+          if (mounted) {
+            setState(() {
+              resetVoteMessage();
+            });
+          }
+        });
         break;
       case _DisplayApplicantsState.netChoiceRefusal:
         schoolChoices[choiceID] = false;
         selectedChoice.refuse();
         showCancelButton[choiceID] = true;
+        voteUpdateMessage = "A été refusé pour ${selectedChoice.school.name}";
+        voteUpdateStudent = selectedStudent.name;
+        voteUpdateStudentID = selectedStudent.id;
+        voteUpdateColor = Colors.red[400];
+        _showVoteUpdateMessage = true;
         if (mounted) {
           setState(() {
 
           });
         }
+        Future.delayed(const Duration(seconds: 10), () {
+          if (mounted) {
+            setState(() {
+              resetVoteMessage();
+            });
+          }
+        });
         break;
       case _DisplayApplicantsState.netCancelAction:
         showCancelButton[choiceID] = false;
         schoolChoices[choiceID] = null;
         // Annuler l'action précédente
         if (selectedChoice.student.accepted == selectedChoice) {
+          voteUpdateMessage = "N'as plus son choix ${selectedChoice.school.name}";
           selectedChoice.remove_choice();
         }
         // Restaurer le choix si il avait été refusé
         if (selectedChoice.student.refused.contains(selectedChoice)) {
+          voteUpdateMessage = "Peut avoir ${selectedChoice.school.name} de nouveau";
           selectedChoice.student.restoreRefusedChoice(selectedChoice, choiceID);
         }
-
+        voteUpdateStudent = selectedStudent.name;
+        voteUpdateColor = Colors.orange[400];
+        voteUpdateStudentID = selectedStudent.id;
+        _showVoteUpdateMessage = true;
         if (mounted){
           setState(() {
 
           });
         }
+        Future.delayed(const Duration(seconds: 10), () {
+          if (mounted) {
+            setState(() {
+              resetVoteMessage();
+            });
+          }
+        });
         break;
     }
   }
@@ -200,6 +274,7 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
     // TODO: implement initState
     widget.sessionHandler.onVoteStart = onVoteStart;
     widget.sessionHandler.onSessionUpdate = onSessionUpdate;
+    widget.sessionHandler.onVoteStop = onVoteStop;
     Timer.periodic(Duration(seconds: 10), (Timer timer) {
       if (loadedData){
         timer.cancel();
@@ -304,319 +379,328 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
               }
               List<MapEntry<int, Student>> studentEntries = students.entries.toList();
               List<MapEntry<int, School>> schoolsEntries = schools.entries.toList();
-              return Row(
+              return Stack(
                 children: [
-                  // Sidebar (20% de la largeur)
-                  Container(
-                    width: MediaQuery.of(context).size.width * 0.2,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFf5f6fa), // Couleur douce
-                      borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(24),
-                        bottomRight: Radius.circular(24),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withAlpha((0.15 * 255).toInt()),
-                          spreadRadius: 2,
-                          blurRadius: 8,
-                          offset: const Offset(2, 0),
-                        ),
-                      ],
-                    ),
-                    child: ListenableBuilder(
-                      listenable: widget.sessionHandler,
-                      builder: (BuildContext context,Widget? child) {
-                        return Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: ListView.builder(
-                            itemCount: studentEntries.length,
-                            itemBuilder: (context, index) {
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 12.0,left: 5,right: 8),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  side: BorderSide(
-                                    color: currentStudentIndex == index
-                                        ? Colors.blueAccent
-                                        : Colors.grey[300]!,
-                                    width: 2,
-                                  ),
-                                ),
-                                elevation: currentStudentIndex == index ? 8 : 2,
-                                color: currentStudentIndex == index
-                                    ? const Color.fromARGB(255, 120, 151, 211)
-                                    : (checkIfChoiceVoteStarted() && index == getCurrentVoteStudentIndex() )
-                                    ? Colors.lightBlueAccent
-                                    : (studentEntries[index].value.accepted != null
-                                    ? const Color.fromARGB(255, 134, 223, 137)
-                                    : studentEntries[index].value.refused.length == studentEntries[index].value.choices.length
-                                    ? const Color.fromARGB(255, 213, 62, 35)
-                                    : studentEntries[index].value.hasNoChoiceLeft() ? Colors.orange.shade200: Colors.white),
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(20),
-                                  onTap: (){
-                                    {
-                                      setState(() {
-                                        selectedStudent = studentEntries[index].value;
-                                        currentStudentIndex = index;
-                                        schoolChoices.clear();
-                                        expandedStudentsChoice = List.generate(
-                                            studentEntries[index].value.choices.values.toList().length,
-                                                (_) => false
-                                        );
-                                        showCancelButton.clear();
-                                        studentEntries[index].value.choices.forEach((key, choice) {
-                                          bool isNetworkDataInitialized = choice.student.networkData != null && choice.student.networkData!.containsKey("choosenChoice");
-                                          bool cancelChoice =  isNetworkDataInitialized && choice.student.networkData!["choosenChoice"] == key && choice.student.networkData!["choosenChoice"] != -1;
-                                          showCancelButton[key] = (choice.student.accepted == choice) ||
-                                              choice.student.refused.contains(choice) || cancelChoice;
-                                          if (choice.student.accepted == choice) {
-                                            schoolChoices[key] = true;
-                                          } else if (choice.student.refused.contains(choice)) {
-                                            schoolChoices[key] = false;
-                                          }
-                                        });
-                                      });
-                                    }
-                                  },
-                                  child: ListTile(
-                                    title: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            studentEntries[index].value.name,
-                                            style: GoogleFonts.montserrat(textStyle : TextStyle(
-                                              fontSize: 14,
-                                              color: currentStudentIndex == index
-                                                  ? const Color.fromARGB(255, 242, 244, 246)
-                                                  : Colors.black,
-                                              fontWeight: currentStudentIndex == index ? FontWeight.bold : FontWeight.normal,
-                                            )),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        Padding(padding: EdgeInsets.only(right: 10)),
-                                        Text(
-                                          studentEntries[index].value.get_max_rank().toStringAsFixed(2),
-                                          style: GoogleFonts.montserrat(textStyle : TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
-                                            color: interrankingColor(studentEntries,index),
-                                          )),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
+                  Row(
+                    children: [
+                      // Sidebar (20% de la largeur)
+                      Container(
+                        width: MediaQuery.of(context).size.width * 0.2,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFf5f6fa), // Couleur douce
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(24),
+                            bottomRight: Radius.circular(24),
                           ),
-                        );
-                      }
-                    ),
-                  ),
-                  // Contenu principal (80% de la largeur)
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color.fromARGB(255, 195, 188, 186).withAlpha((0.08 * 255).toInt()),
-                            spreadRadius: 2,
-                            blurRadius: 12,
-                            offset: const Offset(-2, 0),
-                          ),
-                        ],
-                      ),
-                      child: selectedStudent != null
-                          ? SingleChildScrollView(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Section nom/prénom/promo
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Nom et promo à gauche
-                                Expanded(
-                                  flex: 2,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${selectedStudent?.name}',
-                                        style:  GoogleFonts.montserrat(textStyle: TextStyle(
-                                          fontSize: 28,
-                                          fontWeight: FontWeight.bold,
-                                        )),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        '${selectedStudent?.year}A ${selectedStudent?.departement}',
-                                        style: GoogleFonts.montserrat(textStyle : TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w500,
-                                        )),
-                                      ),
-                                      UiShapes.bPadding(20),
-                                      Visibility(
-                                        child: notificationCard(selectedStudent!),
-                                        visible : selectedStudent?.refused.length != selectedStudent?.choices.length && (selectedStudent?.accepted == null) &&(selectedStudent?.hasNoChoiceLeft() ?? false) ,
-                                      ),
-
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 20),
-                                // Informations sur l'élève à droite
-                                Expanded(
-                                  flex: 1,
-                                  child: StudentInfoCard(selectedStudent!),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 30),
-
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Section Écoles (gauche)
-                                Expanded(
-                                  flex: 2,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      ListenableBuilder(
-                                        listenable : widget.sessionHandler,
-                                        builder: (BuildContext context, Widget? child) {
-                                          return Visibility(
-                                            visible : widget.sessionHandler.hasStartedVote && (getCurrentStudentVote() == selectedStudent?.id),
-                                            child: Container(
-                                              width: double.infinity,
-                                              decoration: BoxDecoration(
-                                                color: Colors.lightBlueAccent.shade700,
-                                                borderRadius: UiShapes().frameRadius,
-                                              ),
-                                              padding: EdgeInsets.all(20),
-                                              child: Text("Veuillez voter pour un des voeux", style: UiText(color: UiColors.white).mediumText,),
-                                            ),
-                                          );
-                                        }
-                                      ),
-                                      UiShapes.bPadding(20),
-                                      // Liste des écoles
-                                      ...selectedStudent!.choices.entries.map((entry) {
-                                        int index = entry.key;
-                                        //Map<String, String> school = entry.value;
-                                        return choiceCard(entry.value, index,expandedStudentsChoice,selectedStudent!);
-                                      }),
-                                    ],
-                                  ),
-                                ),
-
-                                const SizedBox(width: 20),
-
-                                // Section Boutons d'action (droite)
-                                Expanded(
-                                  flex: 1,
-                                  child: Column(
-                                    children: [
-                                      // Bouton Laisser un commentaire
-                                      Container(
-                                        width: double.infinity,
-                                        height: 60,
-                                        margin: const EdgeInsets.only(bottom: 16),
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            showDialog(
-                                              context: context,
-                                              builder: (BuildContext dialogContext) => CommentModal(student: selectedStudent!, choice: null),
-                                            );
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'Laissez un commentaire',
-                                            style: GoogleFonts.montserrat( textStyle: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            )),
-                                          ),
-                                        ),
-                                      ),
-
-                                      // Bouton Revenir à l'étudiant précédent
-                                      Container(
-                                        width: double.infinity,
-                                        height: 50,
-                                        margin: const EdgeInsets.only(bottom: 16),
-                                        child: ElevatedButton(
-                                          onPressed: currentStudentIndex > 0
-                                              ? () => selectStudentByIndex(currentStudentIndex - 1)
-                                              : null, // Disable if we're at the first student
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.grey[300],
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'Revenir à l\'étudiant précédent',
-                                            style: GoogleFonts.montserrat(textStyle: TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 14,
-                                            )),
-                                          ),
-                                        ),
-                                      ),
-
-                                      // Bouton Passer à l'étudiant suivant
-                                      SizedBox(
-                                        width: double.infinity,
-                                        height: 50,
-                                        child: ElevatedButton(
-                                          onPressed: currentStudentIndex < students.length - 1
-                                              ? () => selectStudentByIndex(currentStudentIndex + 1)
-                                              : null, // Disable if we're at the last student
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.grey[300],
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'Passer à l\'étudiant Suivant',
-                                            style: GoogleFonts.montserrat(textStyle: const TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 14,
-                                            )),
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: EdgeInsets.only(bottom : 40),
-                                      ),
-                                      progressCard()
-                                    ],
-                                  ),
-                                ),
-                              ],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withAlpha((0.15 * 255).toInt()),
+                              spreadRadius: 2,
+                              blurRadius: 8,
+                              offset: const Offset(2, 0),
                             ),
                           ],
                         ),
-                      )
-                          :  Center(child: Text("Sélectionnez un étudiant",style: UiText().mediumText,)),
-                    ),
+                        child: ListenableBuilder(
+                          listenable: widget.sessionHandler,
+                          builder: (BuildContext context,Widget? child) {
+                            return Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: ListView.builder(
+                                itemCount: studentEntries.length,
+                                itemBuilder: (context, index) {
+                                  return Card(
+                                    margin: const EdgeInsets.only(bottom: 12.0,left: 5,right: 8),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                      side: BorderSide(
+                                        color: currentStudentIndex == index
+                                            ? Colors.blueAccent
+                                            : Colors.grey[300]!,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    elevation: currentStudentIndex == index ? 8 : 2,
+                                    color: currentStudentIndex == index
+                                        ? const Color.fromARGB(255, 120, 151, 211)
+                                        : (checkIfChoiceVoteStarted() && index == getCurrentVoteStudentIndex() )
+                                        ? Colors.lightBlueAccent
+                                        : (studentEntries[index].value.accepted != null
+                                        ? const Color.fromARGB(255, 134, 223, 137)
+                                        : studentEntries[index].value.refused.length == studentEntries[index].value.choices.length
+                                        ? const Color.fromARGB(255, 213, 62, 35)
+                                        : studentEntries[index].value.hasNoChoiceLeft() ? Colors.orange.shade200: Colors.white),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(20),
+                                      onTap: (){
+                                        {
+                                          setState(() {
+                                            selectedStudent = studentEntries[index].value;
+                                            currentStudentIndex = index;
+                                            schoolChoices.clear();
+                                            expandedStudentsChoice = List.generate(
+                                                studentEntries[index].value.choices.values.toList().length,
+                                                    (_) => false
+                                            );
+                                            showCancelButton.clear();
+                                            studentEntries[index].value.choices.forEach((key, choice) {
+                                              bool isNetworkDataInitialized = choice.student.networkData != null && choice.student.networkData!.containsKey("choosenChoice");
+                                              bool cancelChoice =  isNetworkDataInitialized && choice.student.networkData!["choosenChoice"] == key && choice.student.networkData!["choosenChoice"] != -1;
+                                              showCancelButton[key] = (choice.student.accepted == choice) ||
+                                                  choice.student.refused.contains(choice) || cancelChoice;
+                                              if (choice.student.accepted == choice) {
+                                                schoolChoices[key] = true;
+                                              } else if (choice.student.refused.contains(choice)) {
+                                                schoolChoices[key] = false;
+                                              }
+                                            });
+                                          });
+                                        }
+                                      },
+                                      child: ListTile(
+                                        title: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                studentEntries[index].value.name,
+                                                style: GoogleFonts.montserrat(textStyle : TextStyle(
+                                                  fontSize: 14,
+                                                  color: currentStudentIndex == index
+                                                      ? const Color.fromARGB(255, 242, 244, 246)
+                                                      : Colors.black,
+                                                  fontWeight: currentStudentIndex == index ? FontWeight.bold : FontWeight.normal,
+                                                )),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            Padding(padding: EdgeInsets.only(right: 10)),
+                                            Text(
+                                              studentEntries[index].value.get_max_rank().toStringAsFixed(2),
+                                              style: GoogleFonts.montserrat(textStyle : TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500,
+                                                color: interrankingColor(studentEntries,index),
+                                              )),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          }
+                        ),
+                      ),
+                      // Contenu principal (80% de la largeur)
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color.fromARGB(255, 195, 188, 186).withAlpha((0.08 * 255).toInt()),
+                                spreadRadius: 2,
+                                blurRadius: 12,
+                                offset: const Offset(-2, 0),
+                              ),
+                            ],
+                          ),
+                          child: selectedStudent != null
+                              ? SingleChildScrollView(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Section nom/prénom/promo
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Nom et promo à gauche
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${selectedStudent?.name}',
+                                            style:  GoogleFonts.montserrat(textStyle: TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.bold,
+                                            )),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '${selectedStudent?.year}A ${selectedStudent?.departement}',
+                                            style: GoogleFonts.montserrat(textStyle : TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w500,
+                                            )),
+                                          ),
+                                          UiShapes.bPadding(20),
+                                          Visibility(
+                                            child: notificationCard(selectedStudent!),
+                                            visible : selectedStudent?.refused.length != selectedStudent?.choices.length && (selectedStudent?.accepted == null) &&(selectedStudent?.hasNoChoiceLeft() ?? false) ,
+                                          ),
+
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    // Informations sur l'élève à droite
+                                    Expanded(
+                                      flex: 1,
+                                      child: StudentInfoCard(selectedStudent!),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 30),
+
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Section Écoles (gauche)
+                                    Expanded(
+                                      flex: 2,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          ListenableBuilder(
+                                            listenable : widget.sessionHandler,
+                                            builder: (BuildContext context, Widget? child) {
+                                              return Visibility(
+                                                visible : widget.sessionHandler.hasStartedVote && (getCurrentStudentVote() == selectedStudent?.id),
+                                                child: Container(
+                                                  width: double.infinity,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.lightBlueAccent.shade700,
+                                                    borderRadius: UiShapes().frameRadius,
+                                                  ),
+                                                  padding: EdgeInsets.all(20),
+                                                  child: Text("Veuillez voter pour un des voeux", style: UiText(color: UiColors.white).mediumText,),
+                                                ),
+                                              );
+                                            }
+                                          ),
+                                          UiShapes.bPadding(20),
+                                          // Liste des écoles
+                                          ...selectedStudent!.choices.entries.map((entry) {
+                                            int index = entry.key;
+                                            //Map<String, String> school = entry.value;
+                                            return choiceCard(entry.value, index,expandedStudentsChoice,selectedStudent!);
+                                          }),
+                                        ],
+                                      ),
+                                    ),
+
+                                    const SizedBox(width: 20),
+
+                                    // Section Boutons d'action (droite)
+                                    Expanded(
+                                      flex: 1,
+                                      child: Column(
+                                        children: [
+                                          // Bouton Laisser un commentaire
+                                          Container(
+                                            width: double.infinity,
+                                            height: 60,
+                                            margin: const EdgeInsets.only(bottom: 16),
+                                            child: ElevatedButton(
+                                              onPressed: () {
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (BuildContext dialogContext) => CommentModal(student: selectedStudent!, choice: null),
+                                                );
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.red,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                'Laissez un commentaire',
+                                                style: GoogleFonts.montserrat( textStyle: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                )),
+                                              ),
+                                            ),
+                                          ),
+
+                                          // Bouton Revenir à l'étudiant précédent
+                                          Container(
+                                            width: double.infinity,
+                                            height: 50,
+                                            margin: const EdgeInsets.only(bottom: 16),
+                                            child: ElevatedButton(
+                                              onPressed: currentStudentIndex > 0
+                                                  ? () => selectStudentByIndex(currentStudentIndex - 1)
+                                                  : null, // Disable if we're at the first student
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.grey[300],
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                'Revenir à l\'étudiant précédent',
+                                                style: GoogleFonts.montserrat(textStyle: TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 14,
+                                                )),
+                                              ),
+                                            ),
+                                          ),
+
+                                          // Bouton Passer à l'étudiant suivant
+                                          SizedBox(
+                                            width: double.infinity,
+                                            height: 50,
+                                            child: ElevatedButton(
+                                              onPressed: currentStudentIndex < students.length - 1
+                                                  ? () => selectStudentByIndex(currentStudentIndex + 1)
+                                                  : null, // Disable if we're at the last student
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.grey[300],
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                'Passer à l\'étudiant Suivant',
+                                                style: GoogleFonts.montserrat(textStyle: const TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 14,
+                                                )),
+                                              ),
+                                            ),
+                                          ),
+                                          Padding(
+                                            padding: EdgeInsets.only(bottom : 40),
+                                          ),
+                                          progressCard()
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          )
+                              :  Center(child: Text("Sélectionnez un étudiant",style: UiText().mediumText,)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: voteUpdateMessageWidget()
                   ),
                 ],
               );
@@ -711,6 +795,10 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
     bool isNetworkDataInitialized = choice.student.networkData != null && choice.student.networkData!.containsKey("choosenChoice");
     return (choice.student.accepted != null &&  choice.student.accepted != choice) ||
         (availableplaces == 0 && choice.student.accepted == null) || (isNetworkDataInitialized && choice.student.networkData!["choosenChoice"] != index && choice.student.networkData!["choosenChoice"] != -1 );
+  }
+
+  bool hasSelectedChoice(Choice choice, int index){
+    return (choice.student.accepted != null && choice.student.accepted == choice);
   }
 
   bool disableChoiceByRanking(Student student_f,int choiceNumber){
@@ -830,7 +918,7 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8.0),
-      color: disableChoice(choice,index) ? disabledColor : Colors.grey[300],
+      color: hasSelectedChoice(choice, index) ? Colors.green[100] : disableChoice(choice,index) ? disabledColor : Colors.grey[300],
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
@@ -1033,11 +1121,14 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
                       ),
                       // Afficher le bouton annuler ou les boutons accepter/refuser
                       ListenableBuilder(listenable: widget.sessionHandler, builder:(BuildContext context, Widget? child){
-                        if (showCancelButton[index]! && selectedStudent!.id == getCurrentStudentVote()){
+                        if (((widget.sessionHandler.hasStartedVote || overrideNetworkVote) && (showCancelButton[index] ?? false) && selectedStudent?.id == getCurrentStudentVote())){
                           return cancelVote(choice, index, availablePlaces);
                         }
-                        else{
-                          return voteForChoice(choice, index, availablePlaces,selectedStudent, overrideNetworkVote: overrideNetworkVote);
+                        else if ((widget.sessionHandler.hasStartedVote && selectedStudent.id == getCurrentStudentVote()) || overrideNetworkVote){
+                          return voteForChoice(choice, index, availablePlaces, selectedStudent, overrideNetworkVote: overrideNetworkVote);
+                        }
+                        else {
+                          return Container();
                         }
                       }),
                     ],
@@ -1170,7 +1261,54 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
       ),
     );
   }
-
+  Widget voteUpdateMessageWidget(){
+    return AnimatedOpacity(
+      opacity: _showVoteUpdateMessage ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 500),
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: voteUpdateColor,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(100),
+              blurRadius: 6,
+              offset: const Offset(2, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(text: voteUpdateStudent, style: UiText(color : UiColors.white, weight: FontWeight.w700).smallText),
+                    TextSpan(text: " $voteUpdateMessage", style: UiText(color : UiColors.white).smallText)
+                  ],
+              ),
+              maxLines: 4,
+            ),
+            UiShapes.bPadding(10),
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white.withAlpha(100),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+              onPressed: () {
+                focusStudent(voteUpdateStudentID, fromVoteUpdate: true);
+              },
+              child: Text("Aller à cet étudiant",style: UiText(color: UiColors.white).smallText,),
+            ),
+          ],
+        )
+      ),
+    );
+  }
   Widget cancelVote(Choice choice, int index, int availablePlaces){
     return SizedBox(
       width: 80,
