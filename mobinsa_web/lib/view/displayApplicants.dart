@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobinsa_web/model/networkManager.dart';
 import 'package:mobinsa_web/uiElements.dart';
+import 'package:mobinsa_web/view/searchBarOverlay.dart';
 import 'package:mobinsa_web/view/sessionProgressDialog.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -266,6 +267,11 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
         break;
     }
   }
+  void onSearchSelect(int id){
+    setState(() {
+      selectStudentByIndex(0, fromID: true, id: id);
+    });
+  }
   int _currentPage = 0;
   int _currentSchool = 0;
   List<String> schoolsList = ["Syddansk Universtet - Erasmus", "UNIVERSITY COLLEGE OF SOUTHEAST NORWAY - ERASMUS SMS - OUTGOING","HES-SO Haute École Spécialisée de Suisse Occidentale - ERASMUS"];
@@ -406,90 +412,102 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
                           builder: (BuildContext context,Widget? child) {
                             return Padding(
                               padding: const EdgeInsets.all(12.0),
-                              child: ListView.builder(
-                                itemCount: studentEntries.length,
-                                itemBuilder: (context, index) {
-                                  return Card(
-                                    margin: const EdgeInsets.only(bottom: 12.0,left: 5,right: 8),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                      side: BorderSide(
-                                        color: currentStudentIndex == index
-                                            ? Colors.blueAccent
-                                            : Colors.grey[300]!,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    elevation: currentStudentIndex == index ? 8 : 2,
-                                    color: currentStudentIndex == index
-                                        ? const Color.fromARGB(255, 120, 151, 211)
-                                        : (checkIfChoiceVoteStarted() && index == getCurrentVoteStudentIndex() )
-                                        ? Colors.lightBlueAccent
-                                        : (studentEntries[index].value.accepted != null
-                                        ? const Color.fromARGB(255, 134, 223, 137)
-                                        : studentEntries[index].value.refused.length == studentEntries[index].value.choices.length
-                                        ? const Color.fromARGB(255, 213, 62, 35)
-                                        : studentEntries[index].value.hasNoChoiceLeft() ? Colors.orange.shade200: Colors.white),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(20),
-                                      onTap: (){
-                                        {
-                                          setState(() {
-                                            selectedStudent = studentEntries[index].value;
-                                            currentStudentIndex = index;
-                                            schoolChoices.clear();
-                                            expandedStudentsChoice = List.generate(
-                                                studentEntries[index].value.choices.values.toList().length,
-                                                    (_) => false
-                                            );
-                                            showCancelButton.clear();
-                                            studentEntries[index].value.choices.forEach((key, choice) {
-                                              bool isNetworkDataInitialized = choice.student.networkData != null && choice.student.networkData!.containsKey("choosenChoice");
-                                              bool cancelChoice =  isNetworkDataInitialized && choice.student.networkData!["choosenChoice"] == key && choice.student.networkData!["choosenChoice"] != -1;
-                                              showCancelButton[key] = (choice.student.accepted == choice) ||
-                                                  choice.student.refused.contains(choice) || cancelChoice;
-                                              if (choice.student.accepted == choice) {
-                                                schoolChoices[key] = true;
-                                              } else if (choice.student.refused.contains(choice)) {
-                                                schoolChoices[key] = false;
+                              child: Column(
+
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 5,right: 8),
+                                    child: searchBar(),
+                                  ),
+                                  UiShapes.bPadding(10),
+                                  Expanded(
+                                    child: ListView.builder(
+                                      itemCount: studentEntries.length,
+                                      itemBuilder: (context, index) {
+                                        return Card(
+                                          margin: const EdgeInsets.only(bottom: 12.0,left: 5,right: 8),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                            side: BorderSide(
+                                              color: currentStudentIndex == index
+                                                  ? Colors.blueAccent
+                                                  : Colors.grey[300]!,
+                                              width: 2,
+                                            ),
+                                          ),
+                                          elevation: currentStudentIndex == index ? 8 : 2,
+                                          color: currentStudentIndex == index
+                                              ? const Color.fromARGB(255, 120, 151, 211)
+                                              : (checkIfChoiceVoteStarted() && index == getCurrentVoteStudentIndex() )
+                                              ? Colors.lightBlueAccent
+                                              : (studentEntries[index].value.accepted != null
+                                              ? const Color.fromARGB(255, 134, 223, 137)
+                                              : studentEntries[index].value.refused.length == studentEntries[index].value.choices.length
+                                              ? const Color.fromARGB(255, 213, 62, 35)
+                                              : studentEntries[index].value.hasNoChoiceLeft() ? Colors.orange.shade200: Colors.white),
+                                          child: InkWell(
+                                            borderRadius: BorderRadius.circular(20),
+                                            onTap: (){
+                                              {
+                                                setState(() {
+                                                  selectedStudent = studentEntries[index].value;
+                                                  currentStudentIndex = index;
+                                                  schoolChoices.clear();
+                                                  expandedStudentsChoice = List.generate(
+                                                      studentEntries[index].value.choices.values.toList().length,
+                                                          (_) => false
+                                                  );
+                                                  showCancelButton.clear();
+                                                  studentEntries[index].value.choices.forEach((key, choice) {
+                                                    bool isNetworkDataInitialized = choice.student.networkData != null && choice.student.networkData!.containsKey("choosenChoice");
+                                                    bool cancelChoice =  isNetworkDataInitialized && choice.student.networkData!["choosenChoice"] == key && choice.student.networkData!["choosenChoice"] != -1;
+                                                    showCancelButton[key] = (choice.student.accepted == choice) ||
+                                                        choice.student.refused.contains(choice) || cancelChoice;
+                                                    if (choice.student.accepted == choice) {
+                                                      schoolChoices[key] = true;
+                                                    } else if (choice.student.refused.contains(choice)) {
+                                                      schoolChoices[key] = false;
+                                                    }
+                                                  });
+                                                });
                                               }
-                                            });
-                                          });
-                                        }
-                                      },
-                                      child: ListTile(
-                                        title: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                studentEntries[index].value.name,
-                                                style: GoogleFonts.montserrat(textStyle : TextStyle(
-                                                  fontSize: 14,
-                                                  color: currentStudentIndex == index
-                                                      ? const Color.fromARGB(255, 242, 244, 246)
-                                                      : Colors.black,
-                                                  fontWeight: currentStudentIndex == index ? FontWeight.bold : FontWeight.normal,
-                                                )),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
+                                            },
+                                            child: ListTile(
+                                              title: Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      studentEntries[index].value.name,
+                                                      style: GoogleFonts.montserrat(textStyle : TextStyle(
+                                                        fontSize: 14,
+                                                        color: currentStudentIndex == index
+                                                            ? const Color.fromARGB(255, 242, 244, 246)
+                                                            : Colors.black,
+                                                        fontWeight: currentStudentIndex == index ? FontWeight.bold : FontWeight.normal,
+                                                      )),
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  Padding(padding: EdgeInsets.only(right: 10)),
+                                                  Text(
+                                                    studentEntries[index].value.get_max_rank().toStringAsFixed(2),
+                                                    style: GoogleFonts.montserrat(textStyle : TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w500,
+                                                      color: interrankingColor(studentEntries,index),
+                                                    )),
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                            Padding(padding: EdgeInsets.only(right: 10)),
-                                            Text(
-                                              studentEntries[index].value.get_max_rank().toStringAsFixed(2),
-                                              style: GoogleFonts.montserrat(textStyle : TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w500,
-                                                color: interrankingColor(studentEntries,index),
-                                              )),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                          ),
+                                        );
+                                      },
                                     ),
-                                  );
-                                },
+                                  ),
+                                ],
                               ),
                             );
                           }
@@ -752,6 +770,7 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
       ),
     );
   }
+
   void selectStudentByIndex(int index, {bool fromID=false, int? id}) {
     print("fromID = ${fromID} -> value ? ${id}");
     if (index >= 0 && index < students.length) {
@@ -767,8 +786,7 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
           print("Selected Student by index from list");
 
         }
-        currentStudentIndex = index;
-        print("CURRENT STUDENT INDEX IS $selectedID");
+        currentStudentIndex = students.values.toList().indexOf(selectedStudent!);
         expandedStudentsChoice = List.generate(
             students[selectedID]!.choices.values.toList().length,
                 (_) => false
@@ -1387,6 +1405,9 @@ class _DisplayApplicantsState extends State<DisplayApplicants> {
         UiShapes.bPadding(10),
       ],
     );
+  }
+  Widget searchBar(){
+    return StudentSearchBar(students: students.values.toList(),onSelect: onSearchSelect ,);
   }
 }
 

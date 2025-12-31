@@ -40,6 +40,9 @@ dependencies:
   shared_preferences: ^2.5.3
   intl: ^0.20.2
   phosphor_flutter: ^2.1.0
+  diacritic: ^0.1.6
+  fuzzy: ^0.5.1
+  flutter_typeahead: ^5.2.0
 
 dev_dependencies:
   flutter_test:

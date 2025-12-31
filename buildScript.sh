@@ -37,7 +37,7 @@ make
 mv ${libkeychainname} ../../${RELEASE_FOLDER}/${libkeychainname}
 
 cd ../../
-mv mobinsa_web/build/web $RELEASE_FOLDER/ 
+mv mobinsa_web/build/web $RELEASE_FOLDER/
 
 #Packing everything in an zip.
 
@@ -47,7 +47,7 @@ if [[ "$PLATFORM" = "windows" ]]; then
     powershell.exe -Command "Compress-Archive -Path * -DestinationPath mobinsaHTTPServer_${PLATFORM}_${ARCH}.zip -Force"
 	echo "Zipped the archive correctly"
 	ls
-else	
+else
 	zip -r mobinsaHTTPServer_${PLATFORM}_${ARCH}.zip .
 fi
 # Cleaning up
